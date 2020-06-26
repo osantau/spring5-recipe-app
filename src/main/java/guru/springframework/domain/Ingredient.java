@@ -12,6 +12,7 @@ public class Ingredient {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    @Lob
     private String description;
     private BigDecimal amount;
 
