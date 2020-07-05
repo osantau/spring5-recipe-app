@@ -1,14 +1,18 @@
 package guru.springframework.services;
 
-import guru.springframework.domain.Recipe;
-import guru.springframework.repositories.RecipeRepository;
-import lombok.extern.slf4j.Slf4j;
-
-import org.springframework.stereotype.Service;
-
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import guru.springframework.commands.RecipeCommand;
+import guru.springframework.converters.RecipeCommandToRecipe;
+import guru.springframework.converters.RecipeToRecipeCommand;
+import guru.springframework.domain.Recipe;
+import guru.springframework.repositories.RecipeRepository;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Created by jt on 6/13/17.
@@ -18,29 +22,46 @@ import java.util.Set;
 @Service
 public class RecipeServiceImpl implements RecipeService {
 
-    private final RecipeRepository recipeRepository;
+	private final RecipeRepository recipeRepository;
+	private final RecipeCommandToRecipe recipeCommandToRecipe;
+	private final RecipeToRecipeCommand recipeToRecipeCommand;
 
-    public RecipeServiceImpl(RecipeRepository recipeRepository) {
-        this.recipeRepository = recipeRepository;
-    }
+	public RecipeServiceImpl(RecipeRepository recipeRepository, RecipeCommandToRecipe recipeCommandToRecipe,
+			RecipeToRecipeCommand recipeToRecipeCommand) {
 
-    @Override
-    public Set<Recipe> getRecipes() {
-    	log.debug("I'm ain the service");
-    	
-        Set<Recipe> recipeSet = new HashSet<>();
-        recipeRepository.findAll().iterator().forEachRemaining(recipeSet::add);
-        return recipeSet;
-    }
-    
-    @Override
-    	public Recipe findById(Long id) {
-    		Optional<Recipe> optionalRecipe = recipeRepository.findById(id);
-    		
-    		if(!optionalRecipe.isPresent()) {
-    			throw new RuntimeException("Recipe not found !");
-    		}
-    	
-    		return optionalRecipe.get();
-    	}
+		this.recipeRepository = recipeRepository;
+		this.recipeCommandToRecipe = recipeCommandToRecipe;
+		this.recipeToRecipeCommand = recipeToRecipeCommand;
+	}
+
+	@Override
+	public Set<Recipe> getRecipes() {
+		log.debug("I'm ain the service");
+
+		Set<Recipe> recipeSet = new HashSet<>();
+		recipeRepository.findAll().iterator().forEachRemaining(recipeSet::add);
+		return recipeSet;
+	}
+
+	@Override
+	public Recipe findById(Long id) {
+		Optional<Recipe> optionalRecipe = recipeRepository.findById(id);
+
+		if (!optionalRecipe.isPresent()) {
+			throw new RuntimeException("Recipe not found !");
+		}
+
+		return optionalRecipe.get();
+	}
+
+	@Override
+	@Transactional
+	public RecipeCommand saveRecipeCommand(RecipeCommand command) {
+		// detached from Hibernate Context
+		Recipe detachedRecipe = recipeCommandToRecipe.convert(command);
+		Recipe savedRecipe = recipeRepository.save(detachedRecipe);
+		log.debug("Saved recipeId: " + savedRecipe.getId());
+
+		return recipeToRecipeCommand.convert(savedRecipe);
+	}
 }
